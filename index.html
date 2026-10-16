@@ -1,0 +1,2333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shiftwell — Swap Rules Engine Prototype</title>
+  <meta name="description" content="Automated shift swap evaluation prototype for Shiftwell enterprise scheduling.">
+  <style>
+    /* =====================================================================
+       DESIGN TOKENS & THEME VARIABLES (Light & Dark Mode)
+       ===================================================================== */
+    :root {
+      --color-scheme: light;
+      --bg-page: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-surface-subtle: #f1f5f9;
+      --bg-surface-elevated: #ffffff;
+      --border-subtle: #e2e8f0;
+      --border-strong: #cbd5e1;
+      
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --text-subtle: #94a3b8;
+      
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-bg: #eff6ff;
+      --primary-border: #bfdbfe;
+
+      /* Semantic status colors (accessible contrast) */
+      --badge-auto-bg: #ecfdf5;
+      --badge-auto-border: #a7f3d0;
+      --badge-auto-text: #065f46;
+      --badge-auto-accent: #059669;
+
+      --badge-manager-bg: #fffbeb;
+      --badge-manager-border: #fde68a;
+      --badge-manager-text: #92400e;
+      --badge-manager-accent: #d97706;
+
+      --badge-block-bg: #fef2f2;
+      --badge-block-border: #fecaca;
+      --badge-block-text: #991b1b;
+      --badge-block-accent: #dc2626;
+
+      --badge-escalate-bg: #f0f9ff;
+      --badge-escalate-border: #bae6fd;
+      --badge-escalate-text: #075985;
+      --badge-escalate-accent: #0284c7;
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-full: 9999px;
+
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --color-scheme: dark;
+        --bg-page: #0a0e17;
+        --bg-surface: #121826;
+        --bg-surface-subtle: #1a2234;
+        --bg-surface-elevated: #1f293d;
+        --border-subtle: #243049;
+        --border-strong: #334155;
+        
+        --text-main: #f8fafc;
+        --text-muted: #94a3b8;
+        --text-subtle: #64748b;
+        
+        --primary: #3b82f6;
+        --primary-hover: #60a5fa;
+        --primary-bg: #1e293b;
+        --primary-border: #2563eb;
+
+        --badge-auto-bg: #064e3b40;
+        --badge-auto-border: #047857;
+        --badge-auto-text: #a7f3d0;
+        --badge-auto-accent: #10b981;
+
+        --badge-manager-bg: #78350f40;
+        --badge-manager-border: #b45309;
+        --badge-manager-text: #fde68a;
+        --badge-manager-accent: #f59e0b;
+
+        --badge-block-bg: #7f1d1d40;
+        --badge-block-border: #b91c1c;
+        --badge-block-text: #fecaca;
+        --badge-block-accent: #ef4444;
+
+        --badge-escalate-bg: #0c4a6e40;
+        --badge-escalate-border: #0369a1;
+        --badge-escalate-text: #bae6fd;
+        --badge-escalate-accent: #38bdf8;
+
+        --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+      }
+    }
+
+    :root[data-theme="dark"] {
+      --color-scheme: dark;
+      --bg-page: #0a0e17;
+      --bg-surface: #121826;
+      --bg-surface-subtle: #1a2234;
+      --bg-surface-elevated: #1f293d;
+      --border-subtle: #243049;
+      --border-strong: #334155;
+      
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-subtle: #64748b;
+      
+      --primary: #3b82f6;
+      --primary-hover: #60a5fa;
+      --primary-bg: #1e293b;
+      --primary-border: #2563eb;
+
+      --badge-auto-bg: #064e3b40;
+      --badge-auto-border: #047857;
+      --badge-auto-text: #a7f3d0;
+      --badge-auto-accent: #10b981;
+
+      --badge-manager-bg: #78350f40;
+      --badge-manager-border: #b45309;
+      --badge-manager-text: #fde68a;
+      --badge-manager-accent: #f59e0b;
+
+      --badge-block-bg: #7f1d1d40;
+      --badge-block-border: #b91c1c;
+      --badge-block-text: #fecaca;
+      --badge-block-accent: #ef4444;
+
+      --badge-escalate-bg: #0c4a6e40;
+      --badge-escalate-border: #0369a1;
+      --badge-escalate-text: #bae6fd;
+      --badge-escalate-accent: #38bdf8;
+    }
+
+    :root[data-theme="light"] {
+      --color-scheme: light;
+      --bg-page: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-surface-subtle: #f1f5f9;
+      --bg-surface-elevated: #ffffff;
+      --border-subtle: #e2e8f0;
+      --border-strong: #cbd5e1;
+      
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --text-subtle: #94a3b8;
+      
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-bg: #eff6ff;
+      --primary-border: #bfdbfe;
+
+      --badge-auto-bg: #ecfdf5;
+      --badge-auto-border: #a7f3d0;
+      --badge-auto-text: #065f46;
+      --badge-auto-accent: #059669;
+
+      --badge-manager-bg: #fffbeb;
+      --badge-manager-border: #fde68a;
+      --badge-manager-text: #92400e;
+      --badge-manager-accent: #d97706;
+
+      --badge-block-bg: #fef2f2;
+      --badge-block-border: #fecaca;
+      --badge-block-text: #991b1b;
+      --badge-block-accent: #dc2626;
+
+      --badge-escalate-bg: #f0f9ff;
+      --badge-escalate-border: #bae6fd;
+      --badge-escalate-text: #075985;
+      --badge-escalate-accent: #0284c7;
+    }
+
+    /* Base Reset */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* Accessibility focus ring */
+    :focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+
+    /* Layout Container */
+    .app-container {
+      width: 100%;
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 3rem 1rem;
+      flex: 1;
+    }
+
+    /* App Header */
+    header.app-header {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-subtle);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .header-inner {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 0.875rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #2563eb, #4f46e5);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      font-weight: 800;
+      font-size: 1.15rem;
+      box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+      user-select: none;
+    }
+
+    .brand-text h1 {
+      font-size: 1.125rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .brand-tag {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.15rem 0.45rem;
+      border-radius: var(--radius-sm);
+      background: var(--primary-bg);
+      color: var(--primary);
+      border: 1px solid var(--primary-border);
+    }
+
+    .brand-sub {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .theme-toggle-btn {
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 0.45rem 0.75rem;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      font-size: 0.825rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .theme-toggle-btn:hover {
+      background: var(--border-subtle);
+    }
+
+    /* Tab Navigation */
+    .tab-nav {
+      display: flex;
+      gap: 0.5rem;
+      border-bottom: 2px solid var(--border-subtle);
+      margin: 1.25rem 0 1.75rem 0;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 0.65rem 1.1rem;
+      cursor: pointer;
+      position: relative;
+      white-space: nowrap;
+      border-radius: var(--radius-md) var(--radius-md) 0 0;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: color 0.15s, background-color 0.15s;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      background: var(--bg-surface-subtle);
+    }
+
+    .tab-btn.active {
+      color: var(--primary);
+    }
+
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--primary);
+      border-radius: 3px 3px 0 0;
+    }
+
+    .tab-badge {
+      font-size: 0.75rem;
+      padding: 0.1rem 0.45rem;
+      border-radius: var(--radius-full);
+      background: var(--bg-surface-subtle);
+      color: var(--text-muted);
+    }
+    .tab-btn.active .tab-badge {
+      background: var(--primary-bg);
+      color: var(--primary);
+    }
+
+    /* Tab Content Panes */
+    .tab-pane {
+      display: none;
+    }
+    .tab-pane.active {
+      display: block;
+      animation: fadeIn 0.15s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(3px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* =====================================================================
+       SHARED CARDS & UI COMPONENTS
+       ===================================================================== */
+    .card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 1.25rem;
+    }
+
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin-bottom: 0.35rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+
+    /* Form controls */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    label {
+      font-size: 0.825rem;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .label-hint {
+      font-weight: 400;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    select {
+      font-family: inherit;
+      font-size: 0.9rem;
+      color: var(--text-main);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      padding: 0.55rem 0.75rem;
+      width: 100%;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    input[type="date"]:focus,
+    select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-bg);
+      outline: none;
+    }
+
+    /* Toggle switch */
+    .toggle-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .toggle-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .toggle-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .toggle-desc {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--border-strong);
+      transition: 0.2s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.2s;
+      border-radius: 50%;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+
+    input:checked + .slider {
+      background-color: var(--primary);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(20px);
+    }
+
+    /* Segmented Radio Group */
+    .segmented-group {
+      display: flex;
+      background: var(--bg-surface-subtle);
+      padding: 0.25rem;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+      gap: 0.25rem;
+    }
+
+    .segmented-btn {
+      flex: 1;
+      text-align: center;
+      padding: 0.45rem 0.75rem;
+      font-size: 0.825rem;
+      font-weight: 600;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .segmented-btn.active {
+      background: var(--bg-surface);
+      color: var(--text-main);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Preset selector pills */
+    .preset-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+      padding: 0.75rem 1rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+    }
+
+    .preset-bar-label {
+      font-size: 0.825rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-right: 0.25rem;
+    }
+
+    .preset-pill {
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      font-size: 0.825rem;
+      font-weight: 600;
+      padding: 0.4rem 0.85rem;
+      border-radius: var(--radius-full);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.15s;
+    }
+
+    .preset-pill:hover {
+      border-color: var(--primary-border);
+      background: var(--primary-bg);
+      color: var(--primary);
+    }
+
+    .preset-pill.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #ffffff;
+      box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
+    }
+
+    /* =====================================================================
+       TAB 1: SIMULATE A SWAP
+       ===================================================================== */
+    .simulate-layout {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 900px) {
+      .simulate-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Big Outcome Badge */
+    .outcome-display-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      box-shadow: var(--shadow-md);
+      position: sticky;
+      top: 5rem;
+    }
+
+    .outcome-badge-hero {
+      padding: 1.25rem;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+      border-width: 2px;
+      border-style: solid;
+      transition: all 0.2s ease;
+    }
+
+    .outcome-badge-hero.outcome-AUTO_APPROVE {
+      background: var(--badge-auto-bg);
+      border-color: var(--badge-auto-accent);
+      color: var(--badge-auto-text);
+    }
+    .outcome-badge-hero.outcome-MANAGER_REVIEW {
+      background: var(--badge-manager-bg);
+      border-color: var(--badge-manager-accent);
+      color: var(--badge-manager-text);
+    }
+    .outcome-badge-hero.outcome-BLOCK {
+      background: var(--badge-block-bg);
+      border-color: var(--badge-block-accent);
+      color: var(--badge-block-text);
+    }
+    .outcome-badge-hero.outcome-ESCALATE_REGIONAL {
+      background: var(--badge-escalate-bg);
+      border-color: var(--badge-escalate-accent);
+      color: var(--badge-escalate-text);
+    }
+
+    .outcome-icon {
+      font-size: 2rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .outcome-header {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      opacity: 0.85;
+      margin-bottom: 0.15rem;
+    }
+
+    .outcome-title {
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      margin-bottom: 0.35rem;
+    }
+
+    .outcome-detail {
+      font-size: 0.875rem;
+      font-weight: 500;
+      line-height: 1.4;
+      opacity: 0.95;
+    }
+
+    /* Comparison Strip */
+    .comparison-strip {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.875rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .comparison-col {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+
+    .comparison-col:first-child {
+      border-right: 1px solid var(--border-subtle);
+      padding-right: 0.75rem;
+    }
+
+    .comparison-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    .comparison-value {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .comparison-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* Rule Checklist */
+    .checklist-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+    }
+
+    .checklist-items {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .check-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.65rem 0.75rem;
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      font-size: 0.825rem;
+    }
+
+    .check-icon {
+      font-size: 1rem;
+      line-height: 1.2;
+      flex-shrink: 0;
+    }
+
+    .check-content {
+      flex: 1;
+    }
+
+    .check-name-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.15rem;
+    }
+
+    .check-name {
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .check-status-pill {
+      font-size: 0.675rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 0.1rem 0.4rem;
+      border-radius: var(--radius-sm);
+    }
+
+    .status-pass {
+      background: var(--badge-auto-bg);
+      color: var(--badge-auto-accent);
+      border: 1px solid var(--badge-auto-border);
+    }
+    .status-fail {
+      background: var(--badge-block-bg);
+      color: var(--badge-block-accent);
+      border: 1px solid var(--badge-block-border);
+    }
+    .status-warn {
+      background: var(--badge-manager-bg);
+      color: var(--badge-manager-accent);
+      border: 1px solid var(--badge-manager-border);
+    }
+    .status-skipped {
+      background: var(--bg-surface);
+      color: var(--text-muted);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .check-reason {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    /* Small badge chips */
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: var(--radius-full);
+      white-space: nowrap;
+      border: 1px solid transparent;
+    }
+    .chip-auto {
+      background: var(--badge-auto-bg);
+      color: var(--badge-auto-accent);
+      border-color: var(--badge-auto-border);
+    }
+    .chip-manager {
+      background: var(--badge-manager-bg);
+      color: var(--badge-manager-accent);
+      border-color: var(--badge-manager-border);
+    }
+    .chip-block {
+      background: var(--badge-block-bg);
+      color: var(--badge-block-accent);
+      border-color: var(--badge-block-border);
+    }
+    .chip-escalate {
+      background: var(--badge-escalate-bg);
+      color: var(--badge-escalate-accent);
+      border-color: var(--badge-escalate-border);
+    }
+
+    /* =====================================================================
+       TAB 2: REPLAY 20 SWAPS
+       ===================================================================== */
+    .replay-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .metric-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 1rem 1.25rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .metric-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+    }
+
+    .metric-value {
+      font-size: 1.85rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      color: var(--text-main);
+      margin-bottom: 0.25rem;
+    }
+
+    .metric-sub {
+      font-size: 0.775rem;
+      color: var(--text-muted);
+    }
+
+    /* Replay filter and table */
+    .table-container {
+      overflow-x: auto;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      box-shadow: var(--shadow-sm);
+    }
+
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      text-align: left;
+    }
+
+    table.data-table th {
+      background: var(--bg-surface-subtle);
+      color: var(--text-muted);
+      font-weight: 700;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border-subtle);
+      white-space: nowrap;
+    }
+
+    table.data-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border-subtle);
+      vertical-align: middle;
+    }
+
+    table.data-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    table.data-table tr:hover td {
+      background: var(--bg-surface-subtle);
+    }
+
+    .sub-info {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.15rem;
+    }
+
+    /* Business Savings Calculator card */
+    .savings-card {
+      background: linear-gradient(135deg, var(--bg-surface), var(--bg-surface-subtle));
+      border: 1px solid var(--primary-border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .savings-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .savings-inputs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.85rem;
+      margin-bottom: 1rem;
+    }
+
+    .savings-result-banner {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .savings-num {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--primary);
+      letter-spacing: -0.02em;
+    }
+
+    /* =====================================================================
+       TAB 3: EVIDENCE & RENEWALS
+       ===================================================================== */
+    .chart-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 1.5rem;
+    }
+
+    .chart-caption {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-style: italic;
+      margin-top: 1rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--border-subtle);
+      text-align: center;
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1.25rem;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+      font-size: 0.8rem;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+    }
+
+    /* Roadmap Sprints */
+    .roadmap-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .sprint-card {
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      position: relative;
+    }
+
+    .sprint-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+
+    .sprint-num {
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: var(--primary);
+      letter-spacing: 0.05em;
+    }
+
+    .sprint-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 0.35rem;
+    }
+
+    .sprint-desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* =====================================================================
+       FOOTER
+       ===================================================================== */
+    footer.app-footer {
+      border-top: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      text-align: center;
+      padding: 1.25rem 1rem;
+      font-size: 0.825rem;
+      color: var(--text-muted);
+      margin-top: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===================================================================
+       HEADER
+       =================================================================== -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand-group">
+        <div class="brand-logo" aria-hidden="true">S</div>
+        <div class="brand-text">
+          <h1>
+            Shiftwell
+            <span class="brand-tag">Rules Layer</span>
+          </h1>
+          <div class="brand-sub">Intelligent automated shift swaps for enterprise scheduling</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="themeToggleBtn" class="theme-toggle-btn" aria-label="Toggle visual theme">
+          <span id="themeIcon">🌓</span>
+          <span id="themeLabel">Theme</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===================================================================
+       MAIN CONTENT CONTAINER
+       =================================================================== -->
+  <main class="app-container">
+
+    <!-- Tab Navigation Bar -->
+    <nav class="tab-nav" role="tablist" aria-label="Prototype sections">
+      <button class="tab-btn active" role="tab" id="tab-btn-1" aria-selected="true" aria-controls="pane-1" onclick="switchTab(1)">
+        <span>1. Simulate a Swap</span>
+        <span class="tab-badge">Interactive</span>
+      </button>
+      <button class="tab-btn" role="tab" id="tab-btn-2" aria-selected="false" aria-controls="pane-2" onclick="switchTab(2)">
+        <span>2. Replay 20 Swaps</span>
+        <span class="tab-badge" id="tab2Badge">13/20 Auto</span>
+      </button>
+      <button class="tab-btn" role="tab" id="tab-btn-3" aria-selected="false" aria-controls="pane-3" onclick="switchTab(3)">
+        <span>3. Evidence & Roadmap</span>
+        <span class="tab-badge">12 Accounts</span>
+      </button>
+    </nav>
+
+    <!-- =================================================================
+         TAB 1: SIMULATE A SWAP
+         ================================================================= -->
+    <section id="pane-1" class="tab-pane active" role="tabpanel" aria-labelledby="tab-btn-1">
+      
+      <!-- Customer Preset Selection Bar -->
+      <div class="preset-bar">
+        <span class="preset-bar-label">Customer Preset:</span>
+        <button type="button" class="preset-pill active" id="presetBtn-FreshBowl" onclick="selectPreset('FreshBowl')">
+          🥗 FreshBowl (QSR)
+        </button>
+        <button type="button" class="preset-pill" id="presetBtn-CarePoint" onclick="selectPreset('CarePoint')">
+          🏥 CarePoint (Hospital)
+        </button>
+        <button type="button" class="preset-pill" id="presetBtn-UrbanMart" onclick="selectPreset('UrbanMart')">
+          🛒 UrbanMart (Retail)
+        </button>
+        <span style="font-size:0.75rem; color:var(--text-muted); margin-left:auto;">
+          Select a preset or customize all settings below
+        </span>
+      </div>
+
+      <div class="simulate-layout">
+        
+        <!-- Left: Form Controls -->
+        <div>
+          <!-- Swap Details Card -->
+          <div class="card">
+            <h2 class="card-title">Swap Request Details</h2>
+            <p class="card-subtitle">Specify employee parameters and the prospective shift being exchanged.</p>
+            
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="shiftDate">Shift Date</label>
+                <input type="date" id="shiftDate" value="2026-11-10" oninput="handleSimulateInput()">
+              </div>
+              <div class="form-group">
+                <label for="employeeName">Employee Name</label>
+                <input type="text" id="employeeName" value="Priya Sharma" oninput="handleSimulateInput()">
+              </div>
+              <div class="form-group">
+                <label for="employeeRole">Role</label>
+                <input type="text" id="employeeRole" value="Cook" oninput="handleSimulateInput()">
+              </div>
+              <div class="form-group">
+                <label>Trained for Role?</label>
+                <div class="segmented-group">
+                  <button type="button" class="segmented-btn active" id="trainedYes" onclick="setTrained(true)">Yes (Trained)</button>
+                  <button type="button" class="segmented-btn" id="trainedNo" onclick="setTrained(false)">No (Untrained)</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="hoursScheduled">
+                  <span>Hours Scheduled This Week</span>
+                  <span class="label-hint">Prior to swap</span>
+                </label>
+                <input type="number" id="hoursScheduled" value="30" min="0" max="80" step="0.5" oninput="handleSimulateInput()">
+              </div>
+              <div class="form-group">
+                <label for="shiftHours">
+                  <span>Prospective Shift Length</span>
+                  <span class="label-hint">Hours</span>
+                </label>
+                <input type="number" id="shiftHours" value="8" min="1" max="24" step="0.5" oninput="handleSimulateInput()">
+              </div>
+            </div>
+
+            <!-- Projected Hours Summary Bar -->
+            <div style="margin-top: 1rem; padding: 0.6rem 0.85rem; background: var(--bg-surface-subtle); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: space-between; font-size: 0.825rem;">
+              <span style="color: var(--text-muted); font-weight: 500;">Projected Weekly Workload:</span>
+              <strong id="projectedHoursPill" style="color: var(--text-main); font-size: 0.9rem;">30h + 8h = 38.0h</strong>
+            </div>
+
+            <!-- Certificate Fields (visible when certCheck is enabled) -->
+            <div id="certFieldsContainer" style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px dashed var(--border-subtle); display: none;">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem;">
+                <label style="font-size:0.875rem; font-weight:700;">Employee Certifications</label>
+                <span class="label-hint">Blank indicates certificate not required</span>
+              </div>
+              
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="blsExpiry">BLS (Basic Life Support) Expiry</label>
+                  <input type="date" id="blsExpiry" value="" oninput="handleSimulateInput()">
+                </div>
+                <div class="form-group">
+                  <label for="councilExpiry">Nursing Council Registration Expiry</label>
+                  <input type="date" id="councilExpiry" value="" oninput="handleSimulateInput()">
+                </div>
+              </div>
+
+              <!-- Quick Date Helpers -->
+              <div style="display:flex; gap:0.4rem; margin-top:0.65rem; flex-wrap:wrap; font-size:0.75rem;">
+                <span style="color:var(--text-muted); align-self:center;">Quick Presets:</span>
+                <button type="button" class="preset-pill" style="padding:0.2rem 0.5rem;" onclick="setCertQuick('valid')">Valid (2027)</button>
+                <button type="button" class="preset-pill" style="padding:0.2rem 0.5rem;" onclick="setCertQuick('warn')">Expiring in 20d (2026-11-30)</button>
+                <button type="button" class="preset-pill" style="padding:0.2rem 0.5rem;" onclick="setCertQuick('expired')">Expired (2026-09-15)</button>
+                <button type="button" class="preset-pill" style="padding:0.2rem 0.5rem;" onclick="setCertQuick('clear')">Clear</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Customer Settings Card -->
+          <div class="card">
+            <h2 class="card-title">Customer Policy & Rules Settings</h2>
+            <p class="card-subtitle">Fine-tune the automated decision rules for this tenant.</p>
+            
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+              
+              <!-- Auto-approval master toggle -->
+              <div class="toggle-wrapper" onclick="toggleCheckbox('autoApproveToggle')">
+                <div class="toggle-info">
+                  <span class="toggle-label">Auto-Approval Engine</span>
+                  <span class="toggle-desc" id="autoApproveToggleDesc">Allow qualified swaps to approve instantly without manager intervention</span>
+                </div>
+                <label class="switch" onclick="event.stopPropagation()">
+                  <input type="checkbox" id="autoApproveToggle" checked onchange="handleSimulateInput()">
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <!-- Certificate check toggle -->
+              <div class="toggle-wrapper" onclick="toggleCheckbox('certCheckToggle')">
+                <div class="toggle-info">
+                  <span class="toggle-label">Mandatory Certification Verification</span>
+                  <span class="toggle-desc">Require valid credentials on the shift date (e.g. Healthcare)</span>
+                </div>
+                <label class="switch" onclick="event.stopPropagation()">
+                  <input type="checkbox" id="certCheckToggle" onchange="handleCertCheckToggle()">
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <!-- Hours limit & Over limit action -->
+              <div class="form-grid" style="margin-top: 0.25rem;">
+                <div class="form-group">
+                  <label for="hoursLimitInput">
+                    <span>Weekly Overtime Ceiling</span>
+                    <span class="label-hint">Hours</span>
+                  </label>
+                  <input type="number" id="hoursLimitInput" value="48" min="20" max="80" step="1" oninput="handleSimulateInput()">
+                </div>
+                
+                <div class="form-group">
+                  <label for="overLimitActionSelect">Over-Limit Policy Action</label>
+                  <select id="overLimitActionSelect" onchange="handleSimulateInput()">
+                    <option value="manager">Route to Location Manager</option>
+                    <option value="escalate">Escalate to Regional Approver</option>
+                  </select>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Real-time Evaluation Output -->
+        <div>
+          <div class="outcome-display-card">
+            
+            <!-- Hero Outcome Badge -->
+            <div id="heroOutcomeBadge" class="outcome-badge-hero outcome-AUTO_APPROVE">
+              <div id="heroOutcomeIcon" class="outcome-icon">✅</div>
+              <div>
+                <div class="outcome-header">Swap Evaluation Outcome</div>
+                <div id="heroOutcomeTitle" class="outcome-title">Auto-Approve</div>
+                <div id="heroOutcomeReason" class="outcome-detail">All criteria met for instant auto-approval</div>
+              </div>
+            </div>
+
+            <!-- Comparison Strip: Today vs With Rules -->
+            <div class="comparison-strip">
+              <div class="comparison-col">
+                <span class="comparison-label">Today (No Rules Layer)</span>
+                <span class="comparison-value">Manager Review</span>
+                <span class="comparison-sub">Typical wait ~24 hours</span>
+              </div>
+              <div class="comparison-col">
+                <span class="comparison-label">With Shiftwell Rules</span>
+                <span id="compRulesOutcome" class="comparison-value" style="color: var(--badge-auto-accent);">Instant Auto-Approve</span>
+                <span id="compRulesSub" class="comparison-sub">Automated compliance</span>
+              </div>
+            </div>
+
+            <!-- Rule Checklist -->
+            <div class="checklist-title">Rule-by-Rule Compliance Check</div>
+            <div class="checklist-items" id="checklistContainer">
+              <!-- Rendered via JS -->
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- =================================================================
+         TAB 2: REPLAY 20 SWAPS
+         ================================================================= -->
+    <section id="pane-2" class="tab-pane" role="tabpanel" aria-labelledby="tab-btn-2">
+      
+      <!-- Top Control Bar: Master Auto-Approve Switch -->
+      <div class="card" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; border-left: 4px solid var(--primary);">
+        <div>
+          <h2 style="font-size:1.05rem; font-weight:700;">Global Swap Auto-Approval Switch</h2>
+          <p style="font-size:0.85rem; color:var(--text-muted);">
+            Turn auto-approval off to simulate <strong>today's behaviour</strong> (where every swap defaults to manual Location Manager review).
+          </p>
+        </div>
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+          <span id="globalAutoApproveLabel" style="font-size:0.85rem; font-weight:700; color:var(--badge-auto-accent);">
+            Auto-Approval ON (New Rules Layer)
+          </span>
+          <label class="switch">
+            <input type="checkbox" id="globalAutoApproveSwitch" checked onchange="handleGlobalAutoApproveChange()">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Summary KPI Metric Cards -->
+      <div class="replay-summary-grid">
+        <div class="metric-card">
+          <div class="metric-title">Auto-Approval Share</div>
+          <div id="kpiAutoShare" class="metric-value" style="color: var(--badge-auto-accent);">65.0%</div>
+          <div id="kpiAutoCount" class="metric-sub">13 of 20 swaps instant</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">Location Manager Review</div>
+          <div id="kpiManagerCount" class="metric-value" style="color: var(--badge-manager-accent);">4</div>
+          <div class="metric-sub">Requires local approval</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">Regional Escalations</div>
+          <div id="kpiEscalateCount" class="metric-value" style="color: var(--badge-escalate-accent);">2</div>
+          <div class="metric-sub">Overtime threshold reached</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">Compliance Blocks</div>
+          <div id="kpiBlockCount" class="metric-value" style="color: var(--badge-block-accent);">1</div>
+          <div class="metric-sub">Expired certification catch</div>
+        </div>
+      </div>
+
+      <!-- Business Value & Manager Hours Saved Calculator -->
+      <div class="savings-card">
+        <div class="savings-header">
+          <div>
+            <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main);">
+              Estimated Manager Hours Saved per Month
+            </h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">
+              Formula: <code>Swaps/month × Auto-approve share × Minutes / 60</code> &bull;
+              <em>illustrative estimate, assumptions editable</em>
+            </p>
+          </div>
+          <div style="font-size:0.75rem; background:var(--bg-surface); padding:0.3rem 0.6rem; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); color:var(--text-muted);">
+            Editable Parameters
+          </div>
+        </div>
+
+        <div class="savings-inputs-grid">
+          <div class="form-group">
+            <label for="checkMinutesInput">Manual Check Time (min)</label>
+            <input type="number" id="checkMinutesInput" value="5" min="1" max="30" step="0.5" oninput="renderReplay()">
+          </div>
+          <div class="form-group">
+            <label for="volFreshBowl">FreshBowl Swaps/Mo</label>
+            <input type="number" id="volFreshBowl" value="2900" min="0" step="50" oninput="renderReplay()">
+          </div>
+          <div class="form-group">
+            <label for="volCarePoint">CarePoint Swaps/Mo</label>
+            <input type="number" id="volCarePoint" value="310" min="0" step="10" oninput="renderReplay()">
+          </div>
+          <div class="form-group">
+            <label for="volUrbanMart">UrbanMart Swaps/Mo</label>
+            <input type="number" id="volUrbanMart" value="3100" min="0" step="50" oninput="renderReplay()">
+          </div>
+        </div>
+
+        <div class="savings-result-banner">
+          <div>
+            <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:var(--text-muted);">
+              Total Monthly Management Time Saved
+            </div>
+            <div id="savingsTotalHrs" class="savings-num">~327.6 Hours Saved / Month</div>
+            <div style="font-size:0.8rem; color:var(--text-muted);">
+              Equivalent to ~2.0 full-time store operations managers freed from manual shift triage.
+            </div>
+          </div>
+          <div id="savingsBreakdownText" style="text-align:right; font-size:0.8rem; color:var(--text-muted); line-height:1.6;">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters & Replay Table -->
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-wrap:wrap; gap:0.5rem;">
+        <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+          <button type="button" class="preset-pill active" id="filterBtn-all" onclick="setReplayFilter('all')">All Customers (20)</button>
+          <button type="button" class="preset-pill" id="filterBtn-FreshBowl" onclick="setReplayFilter('FreshBowl')">FreshBowl (8)</button>
+          <button type="button" class="preset-pill" id="filterBtn-CarePoint" onclick="setReplayFilter('CarePoint')">CarePoint (6)</button>
+          <button type="button" class="preset-pill" id="filterBtn-UrbanMart" onclick="setReplayFilter('UrbanMart')">UrbanMart (6)</button>
+        </div>
+        <div style="font-size:0.8rem; color:var(--text-muted);">
+          Shift Date: <strong>2026-11-10</strong> (all swaps)
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="data-table" aria-label="Replay swap records">
+          <thead>
+            <tr>
+              <th style="width: 50px;">ID</th>
+              <th>Customer</th>
+              <th>Role</th>
+              <th>Trained</th>
+              <th>Hours (Sched + Shift)</th>
+              <th>Certificates</th>
+              <th>Outcome Badge</th>
+              <th>Rule Evaluation Reason</th>
+            </tr>
+          </thead>
+          <tbody id="replayTableBody">
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+
+    </section>
+
+    <!-- =================================================================
+         TAB 3: EVIDENCE & ROADMAP
+         ================================================================= -->
+    <section id="pane-3" class="tab-pane" role="tabpanel" aria-labelledby="tab-btn-3">
+      
+      <!-- Chart Card -->
+      <div class="chart-card">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
+          <div>
+            <h2 style="font-size:1.15rem; font-weight:700;">Shift Swap Velocity vs Customer Health</h2>
+            <p style="font-size:0.85rem; color:var(--text-muted);">
+              Percentage of shift swaps approved within 24 hours across 12 enterprise accounts.
+            </p>
+          </div>
+          <div style="font-size:0.75rem; background:var(--bg-surface-subtle); padding:0.35rem 0.65rem; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); font-weight:600;">
+            Threshold: 45% Velocity Target
+          </div>
+        </div>
+
+        <div class="legend-row">
+          <div class="legend-item">
+            <div class="legend-dot" style="background: #10b981;"></div>
+            <span>Healthy Account</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot" style="background: #f59e0b;"></div>
+            <span>At Risk / Watch</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot" style="background: #ef4444;"></div>
+            <span>Lost Account (Churned)</span>
+          </div>
+          <div class="legend-item">
+            <div style="width:20px; height:0; border-top:2px dashed #94a3b8;"></div>
+            <span>45% Threshold Benchmark</span>
+          </div>
+        </div>
+
+        <!-- Inline Accessible SVG Bar Chart -->
+        <div style="width: 100%; overflow-x: auto;">
+          <svg viewBox="0 0 920 380" style="width: 100%; min-width: 680px; height: auto; display: block;" role="img" aria-label="Bar chart showing percentage of swaps approved within 24 hours for 12 accounts">
+            <!-- Background grid lines -->
+            <line x1="60" y1="50" x2="890" y2="50" stroke="var(--border-subtle)" stroke-width="1" />
+            <text x="50" y="54" fill="var(--text-muted)" font-size="11" text-anchor="end">80%</text>
+
+            <line x1="60" y1="110" x2="890" y2="110" stroke="var(--border-subtle)" stroke-width="1" />
+            <text x="50" y="114" fill="var(--text-muted)" font-size="11" text-anchor="end">60%</text>
+
+            <line x1="60" y1="170" x2="890" y2="170" stroke="var(--border-subtle)" stroke-width="1" />
+            <text x="50" y="174" fill="var(--text-muted)" font-size="11" text-anchor="end">40%</text>
+
+            <line x1="60" y1="230" x2="890" y2="230" stroke="var(--border-subtle)" stroke-width="1" />
+            <text x="50" y="234" fill="var(--text-muted)" font-size="11" text-anchor="end">20%</text>
+
+            <line x1="60" y1="290" x2="890" y2="290" stroke="var(--border-strong)" stroke-width="1.5" />
+            <text x="50" y="294" fill="var(--text-muted)" font-size="11" text-anchor="end">0%</text>
+
+            <!-- 45% Benchmark Dashed Line (y = 290 - (45/100)*300 = 290 - 135 = 155) -->
+            <line x1="60" y1="155" x2="890" y2="155" stroke="#ef4444" stroke-width="2" stroke-dasharray="6,5" />
+            <rect x="745" y="141" width="145" height="20" rx="4" fill="var(--bg-surface)" stroke="#ef4444" stroke-width="1" />
+            <text x="817" y="155" fill="#ef4444" font-size="10.5" font-weight="700" text-anchor="middle">45% Danger Threshold</text>
+
+            <!-- 12 Bars Data:
+                 Formula: barHeight = (pct / 100) * 300
+                 y = 290 - barHeight
+                 x slots: 60 + i * 68 + 15
+            -->
+            <!-- 1. UrbanMart: 64% Healthy -->
+            <g>
+              <rect x="80" y="98" width="44" height="192" rx="4" fill="#10b981" />
+              <text x="102" y="90" fill="var(--text-main)" font-size="11" font-weight="700" text-anchor="middle">64%</text>
+              <text x="102" y="308" fill="var(--text-main)" font-size="10" font-weight="600" text-anchor="middle">UrbanMart</text>
+              <text x="102" y="322" fill="#10b981" font-size="9" font-weight="700" text-anchor="middle">Healthy</text>
+            </g>
+
+            <!-- 2. FreshBowl: 38% At risk -->
+            <g>
+              <rect x="148" y="176" width="44" height="114" rx="4" fill="#f59e0b" />
+              <text x="170" y="168" fill="var(--text-main)" font-size="11" font-weight="700" text-anchor="middle">38%</text>
+              <text x="170" y="308" fill="var(--text-main)" font-size="10" font-weight="600" text-anchor="middle">FreshBowl</text>
+              <text x="170" y="322" fill="#f59e0b" font-size="9" font-weight="700" text-anchor="middle">At risk</text>
+            </g>
+
+            <!-- 3. CarePoint: 71% At risk (compliance) -->
+            <g>
+              <rect x="216" y="77" width="44" height="213" rx="4" fill="#f59e0b" />
+              <text x="238" y="69" fill="var(--text-main)" font-size="11" font-weight="700" text-anchor="middle">71%</text>
+              <text x="238" y="308" fill="var(--text-main)" font-size="10" font-weight="600" text-anchor="middle">CarePoint</text>
+              <text x="238" y="322" fill="#f59e0b" font-size="9" font-weight="700" text-anchor="middle">At risk *</text>
+            </g>
+
+            <!-- 4. QuickKart: 67% Healthy -->
+            <g>
+              <rect x="284" y="89" width="44" height="201" rx="4" fill="#10b981" />
+              <text x="306" y="81" fill="var(--text-main)" font-size="11" font-weight="700" text-anchor="middle">67%</text>
+              <text x="306" y="308" fill="var(--text-main)" font-size="10" font-weight="600" text-anchor="middle">QuickKart</text>
+              <text x="306" y="322" fill="#10b981" font-size="9" font-weight="700" text-anchor="middle">Healthy</text>
+            </g>
+
+            <!-- 5. Spice Route: 41% Watch -->
+            <g>
+              <rect x="352" y="167" width="44" height="123" rx="4" fill="#f59e0b" />
+              <text x="374" y="159" fill="var(--text-main)" font-size="11" font-weight="700" text-anchor="middle">41%</text>
+              <text x="374" y="308" fill="var(--text-main)" font-size="10" font-weight="600" text-anchor="middle">Spice Route</text>
+              <text x="374" y="322" fill="#f59e0b" font-size="9" font-weight="700" text-anchor="middle">Watch</text>
+            </g>
+
+            <!-- 6. MedAxis: 80% Healthy -->
+            <g>
+              <rect x="420" y="50" width="44" height="240" rx="4" fill="#10b981" />
+              <text x="442" y="42" fill="var(--text-main)" font-size="11" font-weight="700" text-anchor="middle">80%</text>
+              <text x="442" y="308" fill="var(--text-main)" font-size="10" font-weight="600" text-anchor="middle">MedAxis</text>
+              <text x="442" y="322" fill="#10b981" font-size="9" font-weight="700" text-anchor="middle">Healthy</text>
+            </g>
+
+            <!-- 7. FitZone: 35% At risk -->
+            <g>
+              <rect x="488" y="185" width="44" height="105" rx="4" fill="#f59e0b" />
+              <text x="510" y="177" fill="var(--text-main)" font-size="11" font-weight="700" text-anchor="middle">35%</text>
+              <text x="510" y="308" fill="var(--text-main)" font-size="10" font-weight="600" text-anchor="middle">FitZone</text>
+              <text x="510" y="322" fill="#f59e0b" font-size="9" font-weight="700" text-anchor="middle">At risk</text>
+            </g>
+
+            <!-- 8. Brew & Co: 29% At risk -->
+            <g>
+              <rect x="556" y="203" width="44" height="87" rx="4" fill="#f59e0b" />
+              <text x="578" y="195" fill="var(--text-main)" font-size="11" font-weight="700" text-anchor="middle">29%</text>
+              <text x="578" y="308" fill="var(--text-main)" font-size="10" font-weight="600" text-anchor="middle">Brew & Co</text>
+              <text x="578" y="322" fill="#f59e0b" font-size="9" font-weight="700" text-anchor="middle">At risk</text>
+            </g>
+
+            <!-- 9. StyleHub: 60% Lost (budget cuts) -->
+            <g>
+              <rect x="624" y="110" width="44" height="180" rx="4" fill="#ef4444" />
+              <text x="646" y="102" fill="var(--text-main)" font-size="11" font-weight="700" text-anchor="middle">60%</text>
+              <text x="646" y="308" fill="var(--text-main)" font-size="10" font-weight="600" text-anchor="middle">StyleHub</text>
+              <text x="646" y="322" fill="#ef4444" font-size="9" font-weight="700" text-anchor="middle">Lost (cuts)</text>
+            </g>
+
+            <!-- 10. TandooriTown: 22% Lost -->
+            <g>
+              <rect x="692" y="224" width="44" height="66" rx="4" fill="#ef4444" />
+              <text x="714" y="216" fill="var(--text-main)" font-size="11" font-weight="700" text-anchor="middle">22%</text>
+              <text x="714" y="308" fill="var(--text-main)" font-size="10" font-weight="600" text-anchor="middle">Tandoori</text>
+              <text x="714" y="322" fill="#ef4444" font-size="9" font-weight="700" text-anchor="middle">Lost</text>
+            </g>
+
+            <!-- 11. GreenLeaf: 31% Lost -->
+            <g>
+              <rect x="760" y="197" width="44" height="93" rx="4" fill="#ef4444" />
+              <text x="782" y="189" fill="var(--text-main)" font-size="11" font-weight="700" text-anchor="middle">31%</text>
+              <text x="782" y="308" fill="var(--text-main)" font-size="10" font-weight="600" text-anchor="middle">GreenLeaf</text>
+              <text x="782" y="322" fill="#ef4444" font-size="9" font-weight="700" text-anchor="middle">Lost</text>
+            </g>
+
+            <!-- 12. PawsCare: 33% Lost -->
+            <g>
+              <rect x="828" y="191" width="44" height="99" rx="4" fill="#ef4444" />
+              <text x="850" y="183" fill="var(--text-main)" font-size="11" font-weight="700" text-anchor="middle">33%</text>
+              <text x="850" y="308" fill="var(--text-main)" font-size="10" font-weight="600" text-anchor="middle">PawsCare</text>
+              <text x="850" y="322" fill="#ef4444" font-size="9" font-weight="700" text-anchor="middle">Lost</text>
+            </g>
+          </svg>
+        </div>
+
+        <div class="chart-caption">
+          &ldquo;All 7 accounts under 45% are lost, at risk or on watch. Small sample: a signal, not proof.&rdquo;
+        </div>
+      </div>
+
+      <!-- Renewal ARR Risk Table -->
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
+          <div>
+            <h2 class="card-title">Immediate Enterprise Renewals at Stake</h2>
+            <p class="card-subtitle">
+              Upcoming contracts up for renewal over the next 4 months. Slow swap approvals directly endanger retention.
+            </p>
+          </div>
+          <div style="font-size:0.85rem; font-weight:700; color:var(--badge-block-accent); background:var(--badge-block-bg); border:1px solid var(--badge-block-border); padding:0.35rem 0.75rem; border-radius:var(--radius-sm);">
+            ₹184 Lakh ARR at Risk (45.1% of Total ARR)
+          </div>
+        </div>
+
+        <div class="table-container" style="margin-bottom:1rem;">
+          <table class="data-table" aria-label="Upcoming enterprise renewals">
+            <thead>
+              <tr>
+                <th>Account</th>
+                <th>Renewal Date</th>
+                <th>Annual Recurring Revenue (ARR)</th>
+                <th>Cumulative ARR</th>
+                <th>Current Status & Risk Drivers</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>FitZone</strong></td>
+                <td>October 2026</td>
+                <td>₹22 Lakh</td>
+                <td>₹22 Lakh</td>
+                <td><span class="chip chip-manager">At Risk</span> &bull; 35% 24h swap approval rate; manager bottleneck</td>
+              </tr>
+              <tr>
+                <td><strong>Brew & Co</strong></td>
+                <td>November 2026</td>
+                <td>₹18 Lakh</td>
+                <td>₹40 Lakh</td>
+                <td><span class="chip chip-manager">At Risk</span> &bull; 29% 24h swap approval rate; barista absenteeism</td>
+              </tr>
+              <tr>
+                <td><strong>CarePoint</strong></td>
+                <td>December 2026</td>
+                <td>₹60 Lakh</td>
+                <td>₹100 Lakh</td>
+                <td><span class="chip chip-manager">At Risk (Compliance)</span> &bull; Clinical audit exposure on expired nurse licenses</td>
+              </tr>
+              <tr>
+                <td><strong>FreshBowl</strong></td>
+                <td>January 2027</td>
+                <td>₹84 Lakh</td>
+                <td><strong>₹184 Lakh</strong></td>
+                <td><span class="chip chip-manager">At Risk</span> &bull; 38% swap velocity; location managers overwhelmed</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Callout Note regarding UrbanMart and ARR context -->
+        <div style="background:var(--bg-surface-subtle); border-left:4px solid var(--primary); padding:0.85rem 1rem; border-radius:0 var(--radius-md) var(--radius-md) 0; font-size:0.85rem;">
+          <strong>Strategic Portfolio Note:</strong>
+          UrbanMart represents ₹110 Lakh ARR and renews in August 2027. Total book ARR is ₹408 Lakh.
+          The 4 accounts renewing through Jan 2027 (FitZone, Brew & Co, CarePoint, FreshBowl) account for <strong>₹184 Lakh (45.1%)</strong> of company ARR.
+          Deploying this swap rules layer eliminates approval drag and secures compliance ahead of these renewal windows.
+        </div>
+      </div>
+
+      <!-- Sprint Roadmap Card -->
+      <div class="card">
+        <h2 class="card-title">Implementation Roadmap: Swap Rules Layer</h2>
+        <p class="card-subtitle">Iterative 6-sprint rollout architecture to de-risk delivery.</p>
+
+        <div class="roadmap-grid">
+          <div class="sprint-card">
+            <div class="sprint-header">
+              <span class="sprint-num">Sprint 1</span>
+              <span class="chip chip-block" style="font-size:0.65rem;">Compliance Gate</span>
+            </div>
+            <div class="sprint-title">Certificate Block</div>
+            <p class="sprint-desc">
+              Hard validation layer against credential registry. Blocks assignments with expired certificates prior to scheduling, eliminating compliance risk for CarePoint.
+            </p>
+          </div>
+
+          <div class="sprint-card">
+            <div class="sprint-header">
+              <span class="sprint-num">Sprints 2–3</span>
+              <span class="chip chip-auto" style="font-size:0.65rem;">Core Engine</span>
+            </div>
+            <div class="sprint-title">Swap Rules & Auto-Approval</div>
+            <p class="sprint-desc">
+              Pure functional rules engine, role training validation, customer policy toggles, and instant auto-approval for qualified low-risk shift exchanges.
+            </p>
+          </div>
+
+          <div class="sprint-card">
+            <div class="sprint-header">
+              <span class="sprint-num">Sprint 4</span>
+              <span class="chip chip-escalate" style="font-size:0.65rem;">Cost Guardrail</span>
+            </div>
+            <div class="sprint-title">Overtime as a Rule</div>
+            <p class="sprint-desc">
+              Weekly hours aggregator with configurable 48h limit. Configurable over-limit actions: routing to location manager (FreshBowl) or regional escalation (UrbanMart).
+            </p>
+          </div>
+
+          <div class="sprint-card">
+            <div class="sprint-header">
+              <span class="sprint-num">Sprints 5–6</span>
+              <span class="chip chip-manager" style="font-size:0.65rem;">Pilot & Rollout</span>
+            </div>
+            <div class="sprint-title">Rollout & Buffer</div>
+            <p class="sprint-desc">
+              Controlled multi-tenant rollout with FreshBowl, CarePoint, and UrbanMart. Real-time exception telemetry, override dashboards, and deployment buffer.
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ===================================================================
+       FOOTER (Present on every tab)
+       =================================================================== -->
+  <footer class="app-footer">
+    <div>Prototype with illustrative sample data. Not production software.</div>
+  </footer>
+
+  <!-- ===================================================================
+       PURE RULES ENGINE IMPORT
+       Single source of truth shared between index.html and tests.js
+       =================================================================== -->
+  <script src="rules.js"></script>
+
+  <!-- Fallback in case rules.js fails to load over anomalous file protocol -->
+  <script>
+    if (typeof evaluateSwap === 'undefined') {
+      console.error('rules.js could not be loaded. Please ensure rules.js is in the same folder as index.html.');
+      alert('Shiftwell rules.js could not be found. Please ensure rules.js is in the same folder.');
+    }
+  </script>
+
+  <!-- ===================================================================
+       INTERACTIVE UI CONTROLLER
+       =================================================================== -->
+  <script>
+    (function () {
+      'use strict';
+
+      // Application State
+      const diffInDays = window.diffInDays || (window.ShiftwellRules && window.ShiftwellRules.diffInDays) || function (t, b) {
+        if (!t || !b) return null;
+        const [y1, m1, d1] = t.split('-').map(Number);
+        const [y2, m2, d2] = b.split('-').map(Number);
+        return Math.round((Date.UTC(y1, m1 - 1, d1) - Date.UTC(y2, m2 - 1, d2)) / 86400000);
+      };
+
+      let currentPreset = 'FreshBowl';
+      let isTrainedValue = true;
+      let replayCustomerFilter = 'all';
+      let globalAutoApproveState = true;
+
+      // Theme Controller (no localStorage, uses in-memory state and OS preference)
+      let currentTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+
+      function applyTheme(theme) {
+        currentTheme = theme;
+        document.documentElement.setAttribute('data-theme', theme);
+        const icon = document.getElementById('themeIcon');
+        const label = document.getElementById('themeLabel');
+        if (icon && label) {
+          icon.textContent = theme === 'dark' ? '🌙' : '☀️';
+          label.textContent = theme === 'dark' ? 'Dark' : 'Light';
+        }
+      }
+
+      document.getElementById('themeToggleBtn').addEventListener('click', function () {
+        applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+      });
+
+      // Initialize theme based on preference
+      applyTheme(currentTheme);
+
+      // =================================================================
+      // TAB CONTROLLER
+      // =================================================================
+      window.switchTab = function (tabNumber) {
+        for (let i = 1; i <= 3; i++) {
+          const btn = document.getElementById('tab-btn-' + i);
+          const pane = document.getElementById('pane-' + i);
+          if (btn && pane) {
+            const isActive = i === tabNumber;
+            btn.classList.toggle('active', isActive);
+            btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            pane.classList.toggle('active', isActive);
+          }
+        }
+      };
+
+      // =================================================================
+      // TAB 1 CONTROLLER (Simulate a Swap)
+      // =================================================================
+      window.selectPreset = function (presetKey) {
+        currentPreset = presetKey;
+        
+        // Update preset pill styles
+        ['FreshBowl', 'CarePoint', 'UrbanMart'].forEach(k => {
+          const btn = document.getElementById('presetBtn-' + k);
+          if (btn) btn.classList.toggle('active', k === presetKey);
+        });
+
+        const preset = CUSTOMER_PRESETS[presetKey];
+        if (!preset) return;
+
+        // Apply settings
+        document.getElementById('autoApproveToggle').checked = preset.autoApprove;
+        document.getElementById('certCheckToggle').checked = preset.certCheck;
+        document.getElementById('hoursLimitInput').value = preset.hoursLimit;
+        document.getElementById('overLimitActionSelect').value = preset.overLimitAction;
+
+        // Set realistic sample employee swap for that customer
+        if (presetKey === 'FreshBowl') {
+          document.getElementById('employeeName').value = 'Rahul Verma';
+          document.getElementById('employeeRole').value = 'Cook';
+          setTrained(true);
+          document.getElementById('hoursScheduled').value = '30';
+          document.getElementById('shiftHours').value = '8';
+          document.getElementById('blsExpiry').value = '';
+          document.getElementById('councilExpiry').value = '';
+        } else if (presetKey === 'CarePoint') {
+          document.getElementById('employeeName').value = 'Sister Sunita';
+          document.getElementById('employeeRole').value = 'Nurse';
+          setTrained(true);
+          document.getElementById('hoursScheduled').value = '24';
+          document.getElementById('shiftHours').value = '8';
+          document.getElementById('blsExpiry').value = '2027-03-31';
+          document.getElementById('councilExpiry').value = '2027-03-31';
+        } else if (presetKey === 'UrbanMart') {
+          document.getElementById('employeeName').value = 'Amit Patel';
+          document.getElementById('employeeRole').value = 'Associate';
+          setTrained(true);
+          document.getElementById('hoursScheduled').value = '38';
+          document.getElementById('shiftHours').value = '8';
+          document.getElementById('blsExpiry').value = '';
+          document.getElementById('councilExpiry').value = '';
+        }
+
+        handleCertCheckToggle();
+        handleSimulateInput();
+      };
+
+      window.setTrained = function (isTrained) {
+        isTrainedValue = isTrained;
+        const yesBtn = document.getElementById('trainedYes');
+        const noBtn = document.getElementById('trainedNo');
+        if (yesBtn && noBtn) {
+          yesBtn.classList.toggle('active', isTrained);
+          noBtn.classList.toggle('active', !isTrained);
+        }
+        handleSimulateInput();
+      };
+
+      window.toggleCheckbox = function (id) {
+        const cb = document.getElementById(id);
+        if (cb) {
+          cb.checked = !cb.checked;
+          if (id === 'certCheckToggle') handleCertCheckToggle();
+          else handleSimulateInput();
+        }
+      };
+
+      window.handleCertCheckToggle = function () {
+        const certCheck = document.getElementById('certCheckToggle').checked;
+        const container = document.getElementById('certFieldsContainer');
+        if (container) {
+          container.style.display = certCheck ? 'block' : 'none';
+        }
+        handleSimulateInput();
+      };
+
+      window.setCertQuick = function (type) {
+        const blsInput = document.getElementById('blsExpiry');
+        const councilInput = document.getElementById('councilExpiry');
+        if (!blsInput || !councilInput) return;
+
+        if (type === 'valid') {
+          blsInput.value = '2027-03-31';
+          councilInput.value = '2027-03-31';
+        } else if (type === 'warn') {
+          blsInput.value = '2026-11-30'; // 20 days after 2026-11-10
+          councilInput.value = '2027-03-31';
+        } else if (type === 'expired') {
+          blsInput.value = '2026-09-15'; // Expired
+          councilInput.value = '2027-03-31';
+        } else if (type === 'clear') {
+          blsInput.value = '';
+          councilInput.value = '';
+        }
+        handleSimulateInput();
+      };
+
+      window.handleSimulateInput = function () {
+        const shiftDate = document.getElementById('shiftDate').value || '2026-11-10';
+        const employeeName = document.getElementById('employeeName').value || 'Employee';
+        const role = document.getElementById('employeeRole').value || 'Staff';
+        const hoursScheduled = parseFloat(document.getElementById('hoursScheduled').value) || 0;
+        const shiftHours = parseFloat(document.getElementById('shiftHours').value) || 0;
+
+        const autoApprove = document.getElementById('autoApproveToggle').checked;
+        const certCheck = document.getElementById('certCheckToggle').checked;
+        const hoursLimit = parseFloat(document.getElementById('hoursLimitInput').value) || 48;
+        const overLimitAction = document.getElementById('overLimitActionSelect').value || 'manager';
+
+        // Auto approve description text update
+        const autoDesc = document.getElementById('autoApproveToggleDesc');
+        if (autoDesc) {
+          autoDesc.textContent = autoApprove 
+            ? 'Qualified swaps approve instantly in under a second' 
+            : "Auto-approval off (today's behaviour: routes all swaps to manager)";
+        }
+
+        // Projected hours update
+        const projected = hoursScheduled + shiftHours;
+        const projPill = document.getElementById('projectedHoursPill');
+        if (projPill) {
+          projPill.textContent = `${hoursScheduled}h + ${shiftHours}h = ${projected.toFixed(1)}h`;
+          if (projected > hoursLimit) {
+            projPill.style.color = 'var(--badge-block-accent)';
+            projPill.textContent += ` (exceeds ${hoursLimit}h limit)`;
+          } else {
+            projPill.style.color = 'var(--text-main)';
+          }
+        }
+
+        // Certificates array
+        const certificates = [];
+        if (certCheck) {
+          const bls = document.getElementById('blsExpiry').value;
+          const council = document.getElementById('councilExpiry').value;
+          if (bls) certificates.push({ name: 'BLS', expiry: bls });
+          if (council) certificates.push({ name: 'Nursing Council', expiry: council });
+        }
+
+        const swap = {
+          customer: currentPreset,
+          role,
+          trained: isTrainedValue,
+          hoursScheduled,
+          shiftHours,
+          shiftDate,
+          certificates,
+        };
+
+        const settings = {
+          autoApprove,
+          certCheck,
+          hoursLimit,
+          overLimitAction,
+        };
+
+        const result = evaluateSwap(swap, settings);
+        renderSimulateOutput(result, swap, settings);
+      };
+
+      function renderSimulateOutput(result, swap, settings) {
+        const badge = document.getElementById('heroOutcomeBadge');
+        const icon = document.getElementById('heroOutcomeIcon');
+        const title = document.getElementById('heroOutcomeTitle');
+        const reason = document.getElementById('heroOutcomeReason');
+
+        const compValue = document.getElementById('compRulesOutcome');
+        const compSub = document.getElementById('compRulesSub');
+
+        // Reset badge classes
+        badge.className = 'outcome-badge-hero outcome-' + result.outcome;
+
+        if (result.outcome === OUTCOMES.AUTO_APPROVE) {
+          icon.textContent = '✅';
+          title.textContent = 'Auto-Approve';
+          compValue.textContent = 'Instant Auto-Approve';
+          compValue.style.color = 'var(--badge-auto-accent)';
+          compSub.textContent = 'Processed instantly in < 1 second';
+        } else if (result.outcome === OUTCOMES.MANAGER_REVIEW) {
+          icon.textContent = '⚠️';
+          title.textContent = 'Manager Review';
+          compValue.textContent = 'Manager Review';
+          compValue.style.color = 'var(--badge-manager-accent)';
+          compSub.textContent = 'Routed to local store manager';
+        } else if (result.outcome === OUTCOMES.BLOCK) {
+          icon.textContent = '🛑';
+          title.textContent = 'Blocked (Compliance)';
+          compValue.textContent = 'Blocked (Auto-Prevented)';
+          compValue.style.color = 'var(--badge-block-accent)';
+          compSub.textContent = 'Compliance violation prevented';
+        } else if (result.outcome === OUTCOMES.ESCALATE_REGIONAL) {
+          icon.textContent = '🔷';
+          title.textContent = 'Regional Escalation';
+          compValue.textContent = 'Regional Escalation';
+          compValue.style.color = 'var(--badge-escalate-accent)';
+          compSub.textContent = 'Escalated to regional ops team';
+        }
+
+        reason.textContent = result.reason;
+
+        // Render Rule Checklist
+        const checklistContainer = document.getElementById('checklistContainer');
+        if (!checklistContainer) return;
+        checklistContainer.innerHTML = '';
+
+        result.checks.forEach(chk => {
+          const item = document.createElement('div');
+          item.className = 'check-item';
+
+          let iconChar = '✓';
+          let statusLabel = 'Pass';
+          let statusClass = 'status-pass';
+
+          if (chk.status === 'fail') {
+            iconChar = '✕';
+            statusLabel = 'Fail';
+            statusClass = 'status-fail';
+          } else if (chk.status === 'warn') {
+            iconChar = '⚠️';
+            statusLabel = 'Warning';
+            statusClass = 'status-warn';
+          } else if (chk.status === 'skipped') {
+            iconChar = '—';
+            statusLabel = 'Skipped';
+            statusClass = 'status-skipped';
+          }
+
+          let ruleTitle = 'Rule Check';
+          if (chk.rule === 'certificate') ruleTitle = '1. Certificate Validation';
+          else if (chk.rule === 'training') ruleTitle = '2. Role Training Qualification';
+          else if (chk.rule === 'overtime') ruleTitle = '3. Weekly Hours & Overtime Limit';
+          else if (chk.rule === 'auto_approval') ruleTitle = '4. Auto-Approval Policy Engine';
+
+          item.innerHTML = `
+            <div class="check-icon" style="color: ${chk.status === 'fail' ? 'var(--badge-block-accent)' : chk.status === 'warn' ? 'var(--badge-manager-accent)' : chk.status === 'skipped' ? 'var(--text-muted)' : 'var(--badge-auto-accent)'};">
+              ${iconChar}
+            </div>
+            <div class="check-content">
+              <div class="check-name-row">
+                <span class="check-name">${ruleTitle}</span>
+                <span class="check-status-pill ${statusClass}">${statusLabel}</span>
+              </div>
+              <div class="check-reason">${chk.reason}</div>
+            </div>
+          `;
+          checklistContainer.appendChild(item);
+        });
+      }
+
+      // =================================================================
+      // TAB 2 CONTROLLER (Replay 20 Swaps)
+      // =================================================================
+      window.handleGlobalAutoApproveChange = function () {
+        globalAutoApproveState = document.getElementById('globalAutoApproveSwitch').checked;
+        const label = document.getElementById('globalAutoApproveLabel');
+        if (label) {
+          if (globalAutoApproveState) {
+            label.textContent = 'Auto-Approval ON (New Rules Layer)';
+            label.style.color = 'var(--badge-auto-accent)';
+          } else {
+            label.textContent = "Auto-Approval OFF (Today's Manual Status Quo)";
+            label.style.color = 'var(--badge-manager-accent)';
+          }
+        }
+        renderReplay();
+      };
+
+      window.setReplayFilter = function (customer) {
+        replayCustomerFilter = customer;
+        ['all', 'FreshBowl', 'CarePoint', 'UrbanMart'].forEach(k => {
+          const btn = document.getElementById('filterBtn-' + k);
+          if (btn) btn.classList.toggle('active', k === customer);
+        });
+        renderReplay();
+      };
+
+      window.renderReplay = function () {
+        const tableBody = document.getElementById('replayTableBody');
+        if (!tableBody) return;
+        tableBody.innerHTML = '';
+
+        const checkMinutes = parseFloat(document.getElementById('checkMinutesInput').value) || 5;
+        const volFB = parseFloat(document.getElementById('volFreshBowl').value) || 2900;
+        const volCP = parseFloat(document.getElementById('volCarePoint').value) || 310;
+        const volUM = parseFloat(document.getElementById('volUrbanMart').value) || 3100;
+
+        let totalSwapsEvaluated = 0;
+        let countAuto = 0;
+        let countManager = 0;
+        let countBlock = 0;
+        let countEscalate = 0;
+
+        // Track per customer stats for the 20 sample swaps
+        const customerStats = {
+          FreshBowl: { total: 0, auto: 0 },
+          CarePoint: { total: 0, auto: 0 },
+          UrbanMart: { total: 0, auto: 0 },
+        };
+
+        const evaluatedRows = REPLAY_SWAPS.map(swap => {
+          const basePreset = CUSTOMER_PRESETS[swap.customer];
+          const settings = {
+            ...basePreset,
+            autoApprove: globalAutoApproveState,
+          };
+          const res = evaluateSwap(swap, settings);
+
+          customerStats[swap.customer].total++;
+          if (res.outcome === OUTCOMES.AUTO_APPROVE) {
+            customerStats[swap.customer].auto++;
+            countAuto++;
+          } else if (res.outcome === OUTCOMES.MANAGER_REVIEW) {
+            countManager++;
+          } else if (res.outcome === OUTCOMES.BLOCK) {
+            countBlock++;
+          } else if (res.outcome === OUTCOMES.ESCALATE_REGIONAL) {
+            countEscalate++;
+          }
+
+          totalSwapsEvaluated++;
+
+          return {
+            swap,
+            settings,
+            res,
+          };
+        });
+
+        // Filter for display
+        const displayRows = evaluatedRows.filter(item => {
+          if (replayCustomerFilter === 'all') return true;
+          return item.swap.customer === replayCustomerFilter;
+        });
+
+        displayRows.forEach(item => {
+          const { swap, res } = item;
+          const tr = document.createElement('tr');
+
+          // Outcome chip formatting
+          let chipClass = 'chip-auto';
+          let chipText = 'Auto-Approve';
+          if (res.outcome === OUTCOMES.MANAGER_REVIEW) {
+            chipClass = 'chip-manager';
+            chipText = 'Manager Review';
+          } else if (res.outcome === OUTCOMES.BLOCK) {
+            chipClass = 'chip-block';
+            chipText = 'Block';
+          } else if (res.outcome === OUTCOMES.ESCALATE_REGIONAL) {
+            chipClass = 'chip-escalate';
+            chipText = 'Escalate Regional';
+          }
+
+          // Format certificates string
+          let certsStr = '<span style="color:var(--text-subtle);">None required</span>';
+          if (swap.certificates && swap.certificates.length > 0) {
+            certsStr = swap.certificates.map(c => {
+              const diff = diffInDays(c.expiry, swap.shiftDate);
+              let diffTag = '';
+              if (diff < 0) diffTag = `<span style="color:var(--badge-block-accent); font-weight:700;">(Expired ${c.expiry})</span>`;
+              else if (diff <= 30) diffTag = `<span style="color:var(--badge-manager-accent); font-weight:700;">(Exp in ${diff}d)</span>`;
+              else diffTag = `<span style="color:var(--badge-auto-accent);">(Exp ${c.expiry})</span>`;
+              return `<div><strong>${c.name}</strong>: ${diffTag}</div>`;
+            }).join('');
+          }
+
+          const projected = swap.hoursScheduled + swap.shiftHours;
+          const isOverHours = projected > 48;
+
+          tr.innerHTML = `
+            <td><strong>#${swap.id}</strong></td>
+            <td>
+              <strong>${swap.customer}</strong>
+              <div class="sub-info">${swap.customer === 'CarePoint' ? 'certCheck: ON' : 'certCheck: OFF'}</div>
+            </td>
+            <td><strong>${swap.role}</strong></td>
+            <td>
+              <span class="chip ${swap.trained ? 'chip-auto' : 'chip-manager'}" style="font-size:0.7rem; padding:0.1rem 0.45rem;">
+                ${swap.trained ? '✓ Yes' : '✕ No'}
+              </span>
+            </td>
+            <td>
+              <strong>${swap.hoursScheduled}h + ${swap.shiftHours}h = ${projected}h</strong>
+              <div class="sub-info" style="${isOverHours ? 'color:var(--badge-block-accent); font-weight:600;' : ''}">
+                ${projected === 48 ? '48h (Allowed)' : isOverHours ? 'Over 48h limit' : 'Under 48h'}
+              </div>
+            </td>
+            <td>${certsStr}</td>
+            <td>
+              <span class="chip ${chipClass}">${chipText}</span>
+            </td>
+            <td>
+              <div style="font-size:0.825rem; font-weight:600;">${res.reason}</div>
+            </td>
+          `;
+          tableBody.appendChild(tr);
+        });
+
+        // Update Summary KPI Cards
+        const autoSharePct = (countAuto / totalSwapsEvaluated * 100).toFixed(1);
+        document.getElementById('kpiAutoShare').textContent = `${autoSharePct}%`;
+        document.getElementById('kpiAutoCount').textContent = `${countAuto} of ${totalSwapsEvaluated} swaps instant`;
+        document.getElementById('kpiManagerCount').textContent = countManager;
+        document.getElementById('kpiEscalateCount').textContent = countEscalate;
+        document.getElementById('kpiBlockCount').textContent = countBlock;
+
+        const badgeTab2 = document.getElementById('tab2Badge');
+        if (badgeTab2) {
+          badgeTab2.textContent = `${countAuto}/${totalSwapsEvaluated} Auto`;
+        }
+
+        // Calculate Manager Hours Saved
+        // Formula: swaps per month x auto-approve share (for that customer's rows) x minutes / 60
+        const shareFB = customerStats.FreshBowl.total > 0 ? (customerStats.FreshBowl.auto / customerStats.FreshBowl.total) : 0;
+        const shareCP = customerStats.CarePoint.total > 0 ? (customerStats.CarePoint.auto / customerStats.CarePoint.total) : 0;
+        const shareUM = customerStats.UrbanMart.total > 0 ? (customerStats.UrbanMart.auto / customerStats.UrbanMart.total) : 0;
+
+        const savedHrsFB = (volFB * shareFB * checkMinutes) / 60;
+        const savedHrsCP = (volCP * shareCP * checkMinutes) / 60;
+        const savedHrsUM = (volUM * shareUM * checkMinutes) / 60;
+        const totalSavedHrs = savedHrsFB + savedHrsCP + savedHrsUM;
+
+        document.getElementById('savingsTotalHrs').textContent = `~${totalSavedHrs.toFixed(1)} Hours Saved / Month`;
+
+        const breakdown = document.getElementById('savingsBreakdownText');
+        if (breakdown) {
+          breakdown.innerHTML = `
+            <div><strong>FreshBowl:</strong> ${(shareFB * 100).toFixed(0)}% auto &times; ${volFB} swaps = <strong>${savedHrsFB.toFixed(1)} hrs</strong></div>
+            <div><strong>CarePoint:</strong> ${(shareCP * 100).toFixed(0)}% auto &times; ${volCP} swaps = <strong>${savedHrsCP.toFixed(1)} hrs</strong></div>
+            <div><strong>UrbanMart:</strong> ${(shareUM * 100).toFixed(0)}% auto &times; ${volUM} swaps = <strong>${savedHrsUM.toFixed(1)} hrs</strong></div>
+          `;
+        }
+      };
+
+      // Initial execution
+      selectPreset('FreshBowl');
+      renderReplay();
+
+      // Support URL params and Hash fragments for testing and headless screenshot captures
+      try {
+        const hash = window.location.hash || '';
+        const urlParams = new URLSearchParams(window.location.search);
+
+        if (hash.includes('light') || urlParams.get('theme') === 'light') {
+          applyTheme('light');
+        } else if (hash.includes('dark') || urlParams.get('theme') === 'dark') {
+          applyTheme('dark');
+        }
+
+        if (hash.includes('CarePoint') || urlParams.get('preset') === 'CarePoint') {
+          selectPreset('CarePoint');
+        } else if (hash.includes('UrbanMart') || urlParams.get('preset') === 'UrbanMart') {
+          selectPreset('UrbanMart');
+        } else if (hash.includes('FreshBowl') || urlParams.get('preset') === 'FreshBowl') {
+          selectPreset('FreshBowl');
+        }
+
+        if (hash.includes('auto-off') || urlParams.get('autoApprove') === 'false') {
+          const sw = document.getElementById('globalAutoApproveSwitch');
+          if (sw) {
+            sw.checked = false;
+            handleGlobalAutoApproveChange();
+          }
+        }
+
+        if (hash.includes('tab2') || urlParams.get('tab') === '2') {
+          switchTab(2);
+        } else if (hash.includes('tab3') || urlParams.get('tab') === '3') {
+          switchTab(3);
+        } else if (hash.includes('tab1') || urlParams.get('tab') === '1') {
+          switchTab(1);
+        }
+      } catch (e) {
+        // Safe fallback
+      }
+    })();
+  </script>
+</body>
+</html>
